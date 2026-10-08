@@ -1,51 +1,64 @@
-# Exercise 4 — Add a Local Launch Page
+# Exercise 5 — Define Restrictions and Roles in CDS
 
 | | |
 |---|---|
-| Branch | `ex04-local-launch-page` |
-| Sebelumnya | [`ex03-custom-logic`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex03-custom-logic) |
-| Berikutnya | [`ex05-authorization`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex05-authorization) |
-| Unit | 4 · Adding Custom Business Logic |
-| Durasi | 10 mnt (Instructor Guide) · 10 mnt (tutorial) |
-| Tutorial SAP | https://developers.sap.com/tutorials/use-local-launch-page.html |
+| Branch | `ex05-authorization` |
+| Sebelumnya | [`ex04-local-launch-page`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex04-local-launch-page) |
+| Berikutnya | [`ex06-test-cases`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex06-test-cases) |
+| Unit | 5 · Understanding Authorization and Trust Management |
+| Durasi | 20 mnt (Instructor Guide) · 20 mnt (tutorial) |
+| Tutorial SAP | https://developers.sap.com/tutorials/add-authorization.html |
 
-Branch ini berisi kondisi proyek **di akhir Exercise 4**.
+Branch ini berisi kondisi proyek **di akhir Exercise 5**.
 
 ## Tujuan
 
-Menambahkan **launch page lokal**: sandbox SAP Fiori launchpad (header shell + tile) untuk menguji app sebelum ada SAP Build Work Zone.
-Ini salinan terbatas — tanpa konfigurasi app lewat UI, tanpa role, tanpa personalisasi.
+Melindungi service dengan role CAP dan menambahkan **mock user** untuk uji lokal.
+
+| Role | Hak |
+|---|---|
+| `support` | `ProcessorService` — memproses incident, melihat customer |
+| `admin` | `AdminService` — aktivitas admin |
 
 ## Menjalankan branch ini
 
 ```bash
-git checkout ex04-local-launch-page
+git checkout ex05-authorization
 npm install
-cds watch
+npm run watch-incidents
 ```
 
-Buka `http://localhost:4004/launchpage.html#Shell-home`.
+Popup login browser muncul → user **`alice`** atau **`bob`**, password **kosong**.
 
 ## Perbedaan dari exercise sebelumnya
 
 ```bash
-git diff ex03-custom-logic ex04-local-launch-page
+git diff ex04-local-launch-page ex05-authorization
 ```
 
 | File | Status | Isi |
 |---|---|---|
-| `app/launchpage.html` | baru | `sap-ushell-config` dengan satu aplikasi `incidents-app` (`SAPUI5.Component=ns.incidents`, url `./incidents/webapp`), bootstrap `sandbox.js` + `sap-ui-core.js` dari `ui5.sap.com`, tema `sap_horizon` |
-
-File ditaruh langsung di `app/`, **bukan subfolder**.
+| `srv/services.cds` | diubah | `annotate ProcessorService with @(requires: 'support');` dan `annotate AdminService with @(requires: 'admin');` |
+| `package.json` | diubah | `cds.requires["[development]"].auth`: `kind: mocked`, user `alice` (`support`) dan `bob` (`support`, **`admin`**) |
 
 ## Checkpoint (sudah diverifikasi)
 
-- `/launchpage.html` → 200, berisi `SAPUI5.Component=ns.incidents`.
-- Di browser: ganti `/ns.incidents/index.html?sap-ui-xx-viewCache=false` pada URL app dengan `/launchpage.html#Shell-home` → muncul tile **Incident-Management**.
+| Akses | Hasil |
+|---|---|
+| `/odata/v4/processor/Incidents` tanpa login | **401** |
+| alice → `ProcessorService` | **200** |
+| alice → `/odata/v4/admin/Customers` | **403** |
+| bob → `/odata/v4/admin/Customers` | **200** |
+
+## ⚠️ Penyimpangan dari tutorial
+
+| Tutorial | Branch ini | Alasan |
+|---|---|---|
+| `"bob": { "roles": ["support"] }` | `"bob": { "roles": ["support", "admin"] }` | Test Exercise 6 mengharapkan bob punya role `admin`. Dengan konfigurasi tutorial, **2 dari 20 test gagal (403)** — sudah dibuktikan. |
+
+Teks tutorial juga menyebut "you define a `password`", padahal user tidak diberi password — login dengan password kosong.
 
 ## Catatan trainer
 
-- **Kenapa `launchpage.html`, bukan `index.html`?** Server CAP memakai `app/index.html` (bila ada) untuk **menggantikan** halaman default yang berisi link service. Nama lain menjaga halaman default tetap ada.
-- Dev space BAS harus berstatus **Running** (soal assessment Unit 4 no. 11).
-- App kedua cukup ditambah satu entri di `applications`.
-- Tampilan header-nya mirip SAP Launchpad; versi "asli" dengan site, role, dan group dibuat di Exercise 10 (Work Zone).
+- **Tidak ada logout.** Tutup semua jendela browser atau pakai incognito untuk ganti user. Chrome: `chrome://restart`.
+- Role CAP (`support`, `admin`) **bukan** role/scope Cloud Foundry. Di Exercise 8 keduanya diterjemahkan ke `xs-security.json`, di Exercise 9 menjadi role collection — benang merah teori Unit 5.
