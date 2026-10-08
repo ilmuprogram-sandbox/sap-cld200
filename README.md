@@ -1,65 +1,67 @@
-# Exercise 1 — Create a CAP-Based Service
+# Exercise 2 — Generate a User Interface Using SAP Fiori Elements
 
 | | |
 |---|---|
-| Branch | `ex01-create-cap-service` |
-| Sebelumnya | — (proyek baru dari `cds init`) |
-| Berikutnya | [`ex02-fiori-elements-ui`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex02-fiori-elements-ui) |
-| Unit | 2 · Setting Up the CAP Project |
+| Branch | `ex02-fiori-elements-ui` |
+| Sebelumnya | [`ex01-create-cap-service`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex01-create-cap-service) |
+| Berikutnya | [`ex03-custom-logic`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex03-custom-logic) |
+| Unit | 3 · Serving User Interfaces in CAP |
 | Durasi | 30 mnt (Instructor Guide) · 30 mnt (tutorial) |
-| Tutorial SAP | https://developers.sap.com/tutorials/build-cap-app.html |
+| Tutorial SAP | https://developers.sap.com/tutorials/add-fiori-elements-uis.html |
 
-Branch ini berisi kondisi proyek **di akhir Exercise 1**. Ringkasan semua branch ada di branch [`main`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/main).
+Branch ini berisi kondisi proyek **di akhir Exercise 2**.
 
 ## Tujuan
 
-Membuat proyek CAP Node.js `incident-management` dengan domain model, dua service OData, dan data awal dari CSV.
+Membuat app Fiori Elements **List Report + Object Page** untuk `Incidents`, mengaturnya dengan **Page Map / page editor**, dan mengaktifkan **draft**.
 
 ## Menjalankan branch ini
 
 ```bash
-git clone https://github.com/ilmuprogram-sandbox/sap-cld200.git
-cd sap-cld200
-git checkout ex01-create-cap-service
+git checkout ex02-fiori-elements-ui
 npm install
-cds watch            # http://localhost:4004
+npm run watch-incidents     # membuka app Fiori di browser
 ```
 
-Di SAP Business Application Studio: dev space **Full Stack Cloud Application**, clone di `/home/user/projects`.
+Atau `cds watch` lalu buka `/incidents/webapp/index.html`.
 
 ## Perbedaan dari exercise sebelumnya
 
-Ini exercise pertama — semua file baru.
+```bash
+git diff ex01-create-cap-service ex02-fiori-elements-ui --stat
+```
 
-| File | Isi | Dari langkah |
+| File | Status | Isi |
 |---|---|---|
-| `package.json`, `package-lock.json`, `.gitignore`, `.vscode/tasks.json` | Kerangka proyek CAP (`@sap/cds` 9, `@cap-js/sqlite` untuk dev) | `cds init --add nodejs incident-management` + `npm install` |
-| `db/schema.cds` | Entity `Incidents`, `Customers`, `Addresses`, code list `Status` & `Urgency`, type `EMailAddress` & `PhoneNumber` | ditulis manual |
-| `srv/services.cds` | `ProcessorService` (Incidents, Customers `@readonly`) dan `AdminService` | ditulis manual |
-| `db/data/*.csv` | 8 template CSV; 6 diisi data, `*.texts.csv` dibiarkan kosong (untuk terjemahan) | `cds add data` + isi manual |
+| `app/incidents/**` | baru | App Fiori (`ns.incidents`) dari **Fiori: Open Application Generator** — `webapp/manifest.json`, `Component.js`, `index.html`, `i18n`, `ui5.yaml`, test OPA bawaan |
+| `app/incidents/annotations.cds` | baru | **Hasil Page Map**: filter `status_code`/`urgency_code`, kolom Title·Customer·Status·Urgency, criticality status, header (title, customer name, ikon `sap-icon://alert`), section Overview → General Information + Details, section Conversation, value help Status/Urgency/Customer |
+| `_i18n/i18n.properties` | baru | Kunci teks label (hasil tombol **Globe** di page editor) |
+| `app/services.cds` | baru | `using from './incidents/annotations'` — dibuat generator |
+| `app/incidents/webapp/manifest.json` | baru | Selain hasil generator: `initialLoad: Enabled` (List Report) dan tabel Conversation `ResponsiveTable` + `creationMode: Inline` |
+| `srv/services.cds` | diubah | `annotate ProcessorService.Incidents with @odata.draft.enabled;` |
+| `package.json` | diubah | script `watch-incidents` |
+
+> Di BAS, isi `annotations.cds` dan pengaturan `manifest.json` dihasilkan dengan **mengklik** page editor.
+> Di branch ini hasil akhirnya ditulis langsung — isinya setara dengan langkah klik di tutorial.
 
 ## Langkah ringkas
 
-1. `cd projects` → `cds init --add nodejs incident-management` → buka folder → `npm install` → `cds watch`
-   (output awal *No models found…* itu normal).
-2. Buat `db/schema.cds` — perhatikan `cuid`, `managed`, `CodeList`, calculated element `name`, Association vs **Composition**, `@assert.format`.
-   CAP langsung membuat **SQLite in-memory**.
-3. Buat `srv/services.cds` — prinsip **single-purposed services**. Service tersaji di `/odata/v4/processor` dan `/odata/v4/admin`.
-4. `cds add data` → isi CSV.
+1. Command Palette → **Fiori: Open Application Generator** → **List Report Page** → *Use a Local CAP Project* → `ProcessorService` → Main Entity **Incidents**, tabel **Responsive** → Module `incidents`, Title `Incident-Management`, Namespace `ns`.
+2. Hentikan `cds watch` yang masih jalan, lalu **Preview Application** → script `watch-incidents`.
+3. **List Report** di page editor: filter field, kolom, label i18n (Globe), value help, Initial Load, criticality.
+4. **Object Page**: header, section Overview/Details, field Customer dengan value help (name, email), section Conversation.
+5. Tambah `@odata.draft.enabled` di `srv/services.cds`.
 
 ## Checkpoint (sudah diverifikasi)
 
-Di halaman `http://localhost:4004`:
+- `/incidents/webapp/index.html` → 200; `$metadata` memuat `UI.SelectionFields`, `UI.LineItem`, `UI.HeaderInfo`, `Criticality`.
+- Buat incident baru, kosongkan Customer/Status/Urgency, kembali ke list → **draft** tersimpan dan bisa dilanjutkan.
 
-| URL | Hasil |
-|---|---|
-| `/odata/v4/processor/Incidents` | 4 incident |
-| `/odata/v4/processor/Customers?$select=firstName&$expand=incidents` | 3 customer, masing-masing dengan incident-nya |
-
-Data tampil tanpa format JSON = normal.
+> Tampilan visual belum diverifikasi di browser oleh penyusun branch ini — cek sekali sebelum kelas.
 
 ## Catatan trainer
 
-- Pakai checkpoint ini untuk demo teori Unit 2: `$metadata`, `$select`, `$expand`, `$filter`.
-- Kesalahan paling umum: nama file CSV tidak mengikuti pola `<namespace>-<Entity>.csv`, dan pemisah berubah saat copy-paste.
-- Database masih in-memory — data kembali ke isi CSV setiap restart. HANA baru dipakai setelah deploy (Exercise 9).
+- **Pewarnaan status (criticality) dikerjakan di exercise ini**, bukan di Exercise 3 seperti tersirat di teks *Result* PDF.
+- Error `SyntaxError: Unexpected token / in JSON at position 4` → hapus komentar di `.vscode/launch.json`.
+- Port 4004 bentrok → hentikan `cds watch` sebelum `watch-incidents`.
+- Tunjukkan `annotations.cds` ke peserta: Page Map hanya menulis anotasi, UI-nya *metadata-driven*.
