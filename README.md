@@ -1,64 +1,59 @@
-# Exercise 5 — Define Restrictions and Roles in CDS
+# Exercise 6 — Add Test Cases
 
 | | |
 |---|---|
-| Branch | `ex05-authorization` |
-| Sebelumnya | [`ex04-local-launch-page`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex04-local-launch-page) |
-| Berikutnya | [`ex06-test-cases`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex06-test-cases) |
-| Unit | 5 · Understanding Authorization and Trust Management |
-| Durasi | 20 mnt (Instructor Guide) · 20 mnt (tutorial) |
-| Tutorial SAP | https://developers.sap.com/tutorials/add-authorization.html |
+| Branch | `ex06-test-cases` |
+| Sebelumnya | [`ex05-authorization`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex05-authorization) |
+| Berikutnya | [`ex07-external-service`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex07-external-service) |
+| Unit | 6 · Consuming External Services |
+| Durasi | 30 mnt (Instructor Guide) · 30 mnt (tutorial) |
+| Tutorial SAP | https://developers.sap.com/tutorials/add-test-cases.html |
 
-Branch ini berisi kondisi proyek **di akhir Exercise 5**.
+Branch ini berisi kondisi proyek **di akhir Exercise 6**.
 
 ## Tujuan
 
-Melindungi service dengan role CAP dan menambahkan **mock user** untuk uji lokal.
-
-| Role | Hak |
-|---|---|
-| `support` | `ProcessorService` — memproses incident, melihat customer |
-| `admin` | `AdminService` — aktivitas admin |
+Menambahkan test otomatis dengan `cds.test` + Jest untuk endpoint OData, alur draft, custom logic (Exercise 3), dan otorisasi (Exercise 5).
 
 ## Menjalankan branch ini
 
 ```bash
-git checkout ex05-authorization
+git checkout ex06-test-cases
 npm install
-npm run watch-incidents
+npm run test
 ```
 
-Popup login browser muncul → user **`alice`** atau **`bob`**, password **kosong**.
+Hasil yang diharapkan: `Tests: 20 passed, 20 total`.
 
 ## Perbedaan dari exercise sebelumnya
 
 ```bash
-git diff ex04-local-launch-page ex05-authorization
+git diff ex05-authorization ex06-test-cases -- . ':!package-lock.json'
 ```
 
 | File | Status | Isi |
 |---|---|---|
-| `srv/services.cds` | diubah | `annotate ProcessorService with @(requires: 'support');` dan `annotate AdminService with @(requires: 'admin');` |
-| `package.json` | diubah | `cds.requires["[development]"].auth`: `kind: mocked`, user `alice` (`support`) dan `bob` (`support`, **`admin`**) |
+| `tests/test.js` | baru | 20 test dalam 4 kelompok (lihat tabel di bawah) |
+| `package.json` | diubah | devDependency `@cap-js/cds-test` **dan `jest`**; script `"test": "npx jest tests/test.js"` |
+| `package-lock.json` | diubah | Dependensi test |
 
-## Checkpoint (sudah diverifikasi)
-
-| Akses | Hasil |
-|---|---|
-| `/odata/v4/processor/Incidents` tanpa login | **401** |
-| alice → `ProcessorService` | **200** |
-| alice → `/odata/v4/admin/Customers` | **403** |
-| bob → `/odata/v4/admin/Customers` | **200** |
+| Kelompok test | Yang diuji | User |
+|---|---|---|
+| Test The GET Endpoints | Incidents = 4, Customers = 3, `$expand` di AdminService | alice, bob |
+| Draft Choreography APIs | Buat draft → aktivasi (urgency jadi H) → `draftEdit` → status C → buka ulang **gagal** (*Can't modify a closed incident*) → hapus | alice |
+| Auto-Urgency logic | Judul tanpa "urgent" tidak berubah; "URGENT" dan "…urgent…" → H | alice |
+| Authorization | alice → AdminService 403; bob baca/tulis Customers | alice, bob |
 
 ## ⚠️ Penyimpangan dari tutorial
 
 | Tutorial | Branch ini | Alasan |
 |---|---|---|
-| `"bob": { "roles": ["support"] }` | `"bob": { "roles": ["support", "admin"] }` | Test Exercise 6 mengharapkan bob punya role `admin`. Dengan konfigurasi tutorial, **2 dari 20 test gagal (403)** — sudah dibuktikan. |
-
-Teks tutorial juga menyebut "you define a `password`", padahal user tidak diberi password — login dengan password kosong.
+| `npm add -D @cap-js/cds-test` | `npm add -D @cap-js/cds-test jest` | Script tutorial memanggil `npx jest`, tetapi jest tidak pernah dipasang |
+| bob hanya `support` (Exercise 5) | bob `support` + `admin` | Tanpa ini **2 test gagal 403** (terbukti) |
+| Contoh output: 15 test | 20 test | Contoh output di tutorial sudah usang; patokannya semua *passed* |
 
 ## Catatan trainer
 
-- **Tidak ada logout.** Tutup semua jendela browser atau pakai incognito untuk ganti user. Chrome: `chrome://restart`.
-- Role CAP (`support`, `admin`) **bukan** role/scope Cloud Foundry. Di Exercise 8 keduanya diterjemahkan ke `xs-security.json`, di Exercise 9 menjadi role collection — benang merah teori Unit 5.
+- Test ini sekaligus "kunci jawaban" Exercise 3 dan 5: bila Auto-Urgency gagal → cek `srv/services.js`; bila Authorization gagal → cek role bob.
+- Teori Unit 6 memakai **Mocha + Chai**; exercise memakai **Jest** + `expect` dari `cds.test` (gaya Chai). Konsepnya sama, runner-nya berbeda.
+- Assessment Unit 6 no. 4: file yang dipakai `test.js` (di folder `tests`), bukan `test_main.js`.
