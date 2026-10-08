@@ -1,67 +1,56 @@
-# Exercise 2 — Generate a User Interface Using SAP Fiori Elements
+# Exercise 3 — Add Custom Business Logic
 
 | | |
 |---|---|
-| Branch | `ex02-fiori-elements-ui` |
-| Sebelumnya | [`ex01-create-cap-service`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex01-create-cap-service) |
-| Berikutnya | [`ex03-custom-logic`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex03-custom-logic) |
-| Unit | 3 · Serving User Interfaces in CAP |
-| Durasi | 30 mnt (Instructor Guide) · 30 mnt (tutorial) |
-| Tutorial SAP | https://developers.sap.com/tutorials/add-fiori-elements-uis.html |
+| Branch | `ex03-custom-logic` |
+| Sebelumnya | [`ex02-fiori-elements-ui`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex02-fiori-elements-ui) |
+| Berikutnya | [`ex04-local-launch-page`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex04-local-launch-page) |
+| Unit | 4 · Adding Custom Business Logic |
+| Durasi | 10 mnt (Instructor Guide) · 10 mnt (tutorial) |
+| Tutorial SAP | https://developers.sap.com/tutorials/add-custom-logic.html |
 
-Branch ini berisi kondisi proyek **di akhir Exercise 2**.
+Branch ini berisi kondisi proyek **di akhir Exercise 3**.
 
 ## Tujuan
 
-Membuat app Fiori Elements **List Report + Object Page** untuk `Incidents`, mengaturnya dengan **Page Map / page editor**, dan mengaktifkan **draft**.
+Menambahkan event handler untuk `ProcessorService`:
+- **Auto-urgency** — judul yang mengandung kata "urgent" (huruf besar/kecil) otomatis mendapat urgency **High**.
+- **Validasi** — incident yang sudah **Closed** tidak boleh diubah.
 
 ## Menjalankan branch ini
 
 ```bash
-git checkout ex02-fiori-elements-ui
+git checkout ex03-custom-logic
 npm install
-npm run watch-incidents     # membuka app Fiori di browser
+npm run watch-incidents
 ```
-
-Atau `cds watch` lalu buka `/incidents/webapp/index.html`.
 
 ## Perbedaan dari exercise sebelumnya
 
 ```bash
-git diff ex01-create-cap-service ex02-fiori-elements-ui --stat
+git diff ex02-fiori-elements-ui ex03-custom-logic
 ```
 
 | File | Status | Isi |
 |---|---|---|
-| `app/incidents/**` | baru | App Fiori (`ns.incidents`) dari **Fiori: Open Application Generator** — `webapp/manifest.json`, `Component.js`, `index.html`, `i18n`, `ui5.yaml`, test OPA bawaan |
-| `app/incidents/annotations.cds` | baru | **Hasil Page Map**: filter `status_code`/`urgency_code`, kolom Title·Customer·Status·Urgency, criticality status, header (title, customer name, ikon `sap-icon://alert`), section Overview → General Information + Details, section Conversation, value help Status/Urgency/Customer |
-| `_i18n/i18n.properties` | baru | Kunci teks label (hasil tombol **Globe** di page editor) |
-| `app/services.cds` | baru | `using from './incidents/annotations'` — dibuat generator |
-| `app/incidents/webapp/manifest.json` | baru | Selain hasil generator: `initialLoad: Enabled` (List Report) dan tabel Conversation `ResponsiveTable` + `creationMode: Inline` |
-| `srv/services.cds` | diubah | `annotate ProcessorService.Incidents with @odata.draft.enabled;` |
-| `package.json` | diubah | script `watch-incidents` |
+| `srv/services.js` | baru | Class `ProcessorService extends cds.ApplicationService` dengan `before('CREATE')` → `changeUrgencyDueToSubject` dan `before('UPDATE')` → `onUpdate` (`req.reject` bila status `C`) |
 
-> Di BAS, isi `annotations.cds` dan pengaturan `manifest.json` dihasilkan dengan **mengklik** page editor.
-> Di branch ini hasil akhirnya ditulis langsung — isinya setara dengan langkah klik di tutorial.
-
-## Langkah ringkas
-
-1. Command Palette → **Fiori: Open Application Generator** → **List Report Page** → *Use a Local CAP Project* → `ProcessorService` → Main Entity **Incidents**, tabel **Responsive** → Module `incidents`, Title `Incident-Management`, Namespace `ns`.
-2. Hentikan `cds watch` yang masih jalan, lalu **Preview Application** → script `watch-incidents`.
-3. **List Report** di page editor: filter field, kolom, label i18n (Globe), value help, Initial Load, criticality.
-4. **Object Page**: header, section Overview/Details, field Customer dengan value help (name, email), section Conversation.
-5. Tambah `@odata.draft.enabled` di `srv/services.cds`.
+Hanya satu file. Nama `services.js` **sama dengan** `services.cds`, sehingga CAP otomatis menjadikannya implementasi service (teori Unit 4, opsi 1).
 
 ## Checkpoint (sudah diverifikasi)
 
-- `/incidents/webapp/index.html` → 200; `$metadata` memuat `UI.SelectionFields`, `UI.LineItem`, `UI.HeaderInfo`, `Criticality`.
-- Buat incident baru, kosongkan Customer/Status/Urgency, kembali ke list → **draft** tersimpan dan bisa dilanjutkan.
+| Uji | Hasil |
+|---|---|
+| Buat incident berjudul "This is URGENT please", urgency **Medium**, lalu simpan | urgency menjadi **H (High)** |
+| Edit incident *Inverter not functional* (status Closed) → simpan | ditolak: *Can't modify a closed incident!* |
 
-> Tampilan visual belum diverifikasi di browser oleh penyusun branch ini — cek sekali sebelum kelas.
+## Bug tutorial
+
+Bagian *Understand the custom code* di tutorial menjelaskan handler **after READ** yang mengubah hasil baca.
+Itu **tidak cocok** dengan kode yang ditulis (handler **before CREATE** dan **before UPDATE**). Jelaskan ke peserta sesuai kodenya.
 
 ## Catatan trainer
 
-- **Pewarnaan status (criticality) dikerjakan di exercise ini**, bukan di Exercise 3 seperti tersirat di teks *Result* PDF.
-- Error `SyntaxError: Unexpected token / in JSON at position 4` → hapus komentar di `.vscode/launch.json`.
-- Port 4004 bentrok → hentikan `cds watch` sebelum `watch-incidents`.
-- Tunjukkan `annotations.cds` ke peserta: Page Map hanya menulis anotasi, UI-nya *metadata-driven*.
+- Kaitkan dengan fase event `before` / `on` / `after`: `before` dipakai untuk enrichment dan validasi.
+- `req.reject` mengirim error ke client. `req.subject` adalah entitas yang sedang diubah.
+- Logika ini nanti diuji otomatis di Exercise 6 (test *Auto-Urgency* dan *Close Incident…*).
