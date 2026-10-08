@@ -1,79 +1,68 @@
-# Exercise 9 — Deploy in SAP BTP, Cloud Foundry Runtime
+# Exercise 10 — Integrate with SAP Build Work Zone, Standard Edition
 
 | | |
 |---|---|
-| Branch | `ex09-deploy-cloud-foundry` |
-| Sebelumnya | [`ex08-production-prep`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex08-production-prep) |
-| Berikutnya | [`ex10-work-zone`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex10-work-zone) |
-| Unit | 7 · Deploying the Application |
-| Durasi | 40 mnt (Instructor Guide) · **60 mnt** (2 tutorial) |
-| Tutorial SAP | https://developers.sap.com/tutorials/deploy-to-cf.html + https://developers.sap.com/tutorials/user-role-assignment.html |
-
-Branch ini berisi kondisi proyek **di akhir Exercise 9**: siap di-deploy sebagai MTA ke Cloud Foundry.
+| Branch | `ex10-work-zone` |
+| Sebelumnya | [`ex09-deploy-cloud-foundry`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex09-deploy-cloud-foundry) |
+| Berikutnya | — (exercise terakhir) |
+| Unit | 8 · Integrating into SAP Build Work Zone, Standard Edition |
+| Durasi | 30 mnt (Instructor Guide) · **60 mnt** (tutorial) |
+| Tutorial SAP | https://developers.sap.com/tutorials/integrate-with-work-zone.html |
 
 ## Tujuan
 
-Deploy aplikasi sebagai **Multitarget Application (MTA)** ke SAP BTP, Cloud Foundry runtime, lalu memberi role ke user.
-Di sinilah **SAP HANA Cloud** (HDI container) dan **XSUAA** benar-benar dipakai untuk pertama kali.
-
-## Menjalankan branch ini
-
-```bash
-git checkout ex09-deploy-cloud-foundry
-npm install
-(cd app/incidents && npm install)
-mbt build                                   # → mta_archives/incident-management_1.0.0.mtar
-
-# landscape kelas CLD200 (origin wajib):
-cf login --origin cld200-platform -a <API-ENDPOINT>
-cf target -o <ORG> -s <SPACE>
-cf deploy mta_archives/incident-management_1.0.0.mtar
-cf services && cf apps
-```
-
-`cds up` (perintah di tutorial) = `cds add mta` + `mbt build` + `cf deploy` dalam satu langkah.
-
-Lalu di BTP cockpit: **Security → Users** → user sendiri → **Assign Role Collection** → `support (incident-management <org>-<space>)` → **logout & login ulang**.
+Menampilkan aplikasi Incident Management sebagai **tile di site SAP Build Work Zone, standard edition** — satu pintu masuk ke aplikasi SAP BTP.
 
 ## Perbedaan dari exercise sebelumnya
 
+**Tidak ada perubahan kode.** Kode branch ini sama dengan `ex09-deploy-cloud-foundry`; yang berbeda hanya README ini.
+
 ```bash
-git diff ex08-production-prep ex09-deploy-cloud-foundry --stat -- . ':!*package-lock.json'
+git diff ex09-deploy-cloud-foundry ex10-work-zone --stat    # hanya README.md
 ```
 
-| File | Status | Isi |
+Alasannya: tutorial menawarkan dua cara, dan cara yang disarankan untuk kelas (**Cara A**) seluruhnya berupa konfigurasi di BTP cockpit.
+Konfigurasi aplikasi yang dibutuhkan Work Zone (`crossNavigation`, `sap.cloud.service`, HTML5 repo, destination) **sudah dibuat di Exercise 8** dan ikut ter-deploy di Exercise 9.
+
+| | **Cara A — BTP cockpit** (disarankan) | Cara B — Common Data Model (CDM) |
 |---|---|---|
-| `mta.yaml` | baru | Modul `incident-management-srv` (Node.js), `-db-deployer` (HDI), `-app-deployer` + `incidentmanagementincidents` (HTML5), `-destinations`; resource XSUAA (dengan **role-collections**), HDI container `hdi-shared`, destination, html5-repo `app-host` — hasil `cds add mta` |
-| `package.json` | diubah | devDependency `@sap/cds-dk` (dari `cds add mta`); **`[production].API_BUSINESS_PARTNER.credentials.destination`** |
-| `app/incidents/package.json` | diubah | **`overrides`: `@ui5/project` → `ajv 8.17.1`** |
-| `.gitignore` | diubah | `dist/` (output build UI5) |
-| `package-lock.json`, `app/incidents/package-lock.json` | diubah | Sinkron |
+| Ubah kode/MTA | Tidak | Ya — `workzone/cdm.json` + banyak perubahan `mta.yaml` |
+| Redeploy | Tidak | Ya |
+| Role | **Everyone** | role collection `~cdm_defaultRole` |
+| Risiko di kelas | Rendah | Tinggi — contoh `mta.yaml` final di tutorial memuat modul `incident-management-app-deployer` **dua kali** |
+
+Cara B **tidak** diimplementasikan di repo ini.
+
+## Langkah — Cara A
+
+**Prasyarat:** Exercise 9 sudah ter-deploy dan role collection `support (incident-management <org>-<space>)` sudah di-assign.
+
+1. **Subscribe** — Subaccount → **Services → Service Marketplace** → **SAP Build Work Zone, standard edition** → **Create** → Plan **free** → **Create**.
+2. **Role admin** — **Security → Users** → user sendiri → **Assign Role Collection** → `Launchpad_Admin` → **logout & login ulang**.
+3. **Instances and Subscriptions** → **SAP Build Work Zone, standard edition** → **Channel Manager** → refresh content provider **HTML5 Apps**.
+4. **Content Manager → Content Explorer** → tile **HTML5 Apps** → centang **incident-management** → **Add**.
+5. **Content Manager → Create → Group** → *Incident Management Group* → assign app → **Save**.
+6. **Content Manager** → role **Everyone** → **Edit** → assign app → **Save**.
+7. **Site Directory → Create Site** → *Incident Management Site* → **Create**.
 
 ## Checkpoint
 
-| Uji | Status |
+**Site Directory** → **Go to the site** → tile **Incident Management** → List Report tampil dengan data.
+
+> ⏳ Belum diuji di landscape kelas — jalankan sekali di subaccount PREP sebelum kelas.
+
+## Troubleshooting
+
+| Gejala | Penyebab |
 |---|---|
-| `mbt build` → MTAR 5 modul (~8 MB) | ✅ diverifikasi |
-| `cf deploy`, `cf services`, `cf apps` | ⏳ **belum diuji** di landscape kelas — jalankan sekali di subaccount PREP |
-| Role collection ter-assign, app terbuka lewat Work Zone (Exercise 10) | ⏳ belum diuji |
-
-Setelah deploy yang terbentuk di Cloud Foundry: app `incident-management-srv` dan `incident-management-db-deployer`; service instance HDI container, XSUAA, destination, html5-repo.
-
-## ⚠️ Penyimpangan dari tutorial
-
-| Masalah | Perbaikan di branch ini | Status |
-|---|---|---|
-| Setelah Exercise 7, server CAP **gagal start** di production: `No credentials configured for "API_BUSINESS_PARTNER"` → app crash setelah deploy | `[production].API_BUSINESS_PARTNER.credentials`: `destination: API_BUSINESS_PARTNER`, `path: /sap/opu/odata/sap/API_BUSINESS_PARTNER` | Diverifikasi lewat simulasi profil production lokal |
-| `ui5 build` (modul `incidentmanagementincidents`) gagal: *Error compiling schema … Unexpected token ':'* karena **ajv 8.20.0** | `overrides` ajv `8.17.1` di `app/incidents/package.json` | Diverifikasi (Node 22 & 24) |
-| `cds add mta` menambah `@sap/cds-dk` tanpa memperbarui lock → `npm ci` gagal | `npm install` di root sebelum `mbt build` / `cds up` | Diverifikasi |
-| Tutorial: role collection bernama `support` / `admin` | Nama sebenarnya `support (incident-management <org>-<space>)` dan `admin (…)` | Dari `mta.yaml` yang di-generate |
-
-Dengan perbaikan pertama, server start normal. Value help **Customer** akan menjawab **502** sampai destination `API_BUSINESS_PARTNER` dibuat di subaccount
-(mis. ke `https://sandbox.api.sap.com/s4hanacloud` dengan header `APIKey` dari api.sap.com — di sinilah API key dari soal assessment Unit 6 dipakai).
+| Site Manager 403 | `Launchpad_Admin` sudah di-assign tapi belum logout/login |
+| App tidak ada di HTML5 Apps | Channel Manager belum di-refresh, atau konfigurasi Exercise 8 tidak ikut ter-deploy |
+| Site terbuka, tile tidak ada | App belum masuk Group, atau belum di-assign ke role **Everyone** |
+| Tile terbuka, data 403 | Role collection `support (…)` (Exercise 9) belum di-assign / salah IdP |
+| Tile terbuka, data 404 / kosong | `/` di depan `uri` `manifest.json` belum dihapus (Exercise 8) |
+| Value help Customer 502 | Destination `API_BUSINESS_PARTNER` belum dibuat di subaccount (lihat README Exercise 9) |
 
 ## Catatan trainer
 
-- `cf login` di landscape CLD200 **wajib** `--origin cld200-platform`.
-- Instance HANA Cloud harus sudah di-share dari subaccount trainer (Instance Mapping) dan berstatus **Running** — bila tidak, pembuatan HDI container gagal.
-- Saat assign role collection, pilih user dengan **identity provider yang sama** dengan yang dipakai login (IdP `cld200`). Salah IdP = role "ter-assign" tetapi tetap 403.
-- Deploy paling lama di kursus (bisa > 10 menit) — mulai sebelum istirahat.
+- Teks *Business Example* Exercise 10 di PDF ("add unit tests to your application") salah salin dari Exercise 6 — luruskan ke peserta.
+- Kunci assessment Unit 8: 1-B, 2-B (Extensibility), 3-C (`Launchpad_Admin`).
