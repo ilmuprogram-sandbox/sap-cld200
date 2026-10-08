@@ -1,59 +1,68 @@
-# Exercise 6 — Add Test Cases
+# Exercise 7 — Add an External Service (Business Partner API)
 
 | | |
 |---|---|
-| Branch | `ex06-test-cases` |
-| Sebelumnya | [`ex05-authorization`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex05-authorization) |
-| Berikutnya | [`ex07-external-service`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex07-external-service) |
+| Branch | `ex07-external-service` |
+| Sebelumnya | [`ex06-test-cases`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex06-test-cases) |
+| Berikutnya | [`ex08-production-prep`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex08-production-prep) |
 | Unit | 6 · Consuming External Services |
-| Durasi | 30 mnt (Instructor Guide) · 30 mnt (tutorial) |
-| Tutorial SAP | https://developers.sap.com/tutorials/add-test-cases.html |
+| Durasi | 20 mnt (Instructor Guide) · **60 mnt** (2 tutorial) |
+| Tutorial SAP | https://developers.sap.com/tutorials/remote-service-extend.html + https://developers.sap.com/tutorials/remote-service-run-dev-test.html |
 
-Branch ini berisi kondisi proyek **di akhir Exercise 6**.
+> ⚠️ Link di PDF exercise SAP (`remote-service-extend-cf.html`) **404**. Pakai link di atas.
+
+Branch ini berisi kondisi proyek **di akhir Exercise 7**.
 
 ## Tujuan
 
-Menambahkan test otomatis dengan `cds.test` + Jest untuk endpoint OData, alur draft, custom logic (Exercise 3), dan otorisasi (Exercise 5).
+Mengimpor **Business Partner API** SAP S/4HANA Cloud, mengambil daftar customer dari API itu (value help), menyimpan (cache) customer terpilih ke tabel lokal, dan menguji semuanya dengan **mock server lokal** — tanpa sistem S/4 sungguhan.
 
 ## Menjalankan branch ini
 
 ```bash
-git checkout ex06-test-cases
+git checkout ex07-external-service
 npm install
-npm run test
+cds watch --with-mocks          # mock S/4 di proses yang sama
 ```
 
-Hasil yang diharapkan: `Tests: 20 passed, 20 total`.
+Atau seperti tutorial, dua terminal: `cds mock API_BUSINESS_PARTNER` lalu `cds watch`
+(bila tidak terhubung, hapus `~/.cds-services.json`).
+
+Buka `/launchpage.html` → tile Incident Management → login `alice` → **Create** → value help **Customer**.
 
 ## Perbedaan dari exercise sebelumnya
 
 ```bash
-git diff ex05-authorization ex06-test-cases -- . ':!package-lock.json'
+git diff ex06-test-cases ex07-external-service --stat -- . ':!package-lock.json'
 ```
 
 | File | Status | Isi |
 |---|---|---|
-| `tests/test.js` | baru | 20 test dalam 4 kelompok (lihat tabel di bawah) |
-| `package.json` | diubah | devDependency `@cap-js/cds-test` **dan `jest`**; script `"test": "npx jest tests/test.js"` |
-| `package-lock.json` | diubah | Dependensi test |
+| `srv/external/API_BUSINESS_PARTNER.edmx` | baru | Definisi API (OData V2). `cds import` memindahkannya ke sini dari root proyek |
+| `srv/external/API_BUSINESS_PARTNER.cds` | baru | Hasil `cds import … --as cds`, dengan 3 association diubah menjadi **Composition** (`to_BusinessPartnerAddress`, `to_EmailAddress`, `to_PhoneNumber`) |
+| `srv/remote.cds` | baru | `RemoteService` — proyeksi `BusinessPartner`, `BusinessPartnerAddress`, `EmailAddress`, `PhoneNumber` |
+| `srv/external/data/*.csv` | baru | Data mock S/4 (pemisah **titik koma**), ID sama dengan customer lokal |
+| `srv/services.js` | diubah | `init()` jadi `async`; handler baru `on READ Customers` → `onCustomerRead` (delegasi ke S/4) dan `on CREATE/UPDATE Incidents` → `onCustomerCache` (UPSERT ke `Customers`) |
+| `package.json` | diubah | Library `@sap-cloud-sdk/*@3`; `cds.requires.API_BUSINESS_PARTNER` (`kind: odata-v2`) dari `cds import` |
 
-| Kelompok test | Yang diuji | User |
-|---|---|---|
-| Test The GET Endpoints | Incidents = 4, Customers = 3, `$expand` di AdminService | alice, bob |
-| Draft Choreography APIs | Buat draft → aktivasi (urgency jadi H) → `draftEdit` → status C → buka ulang **gagal** (*Can't modify a closed incident*) → hapus | alice |
-| Auto-Urgency logic | Judul tanpa "urgent" tidak berubah; "URGENT" dan "…urgent…" → H | alice |
-| Authorization | alice → AdminService 403; bob baca/tulis Customers | alice, bob |
+## Checkpoint (sudah diverifikasi)
+
+- Value help Customer: 3 customer dari mock S/4, dengan e-mail dari S/4 (mis. `test@demo.com`).
+- Buat incident untuk customer `1004161` → data customer lokal ter-update dengan e-mail/telepon dari S/4.
+- `npm run test` → 20/20 passed.
 
 ## ⚠️ Penyimpangan dari tutorial
 
-| Tutorial | Branch ini | Alasan |
-|---|---|---|
-| `npm add -D @cap-js/cds-test` | `npm add -D @cap-js/cds-test jest` | Script tutorial memanggil `npx jest`, tetapi jest tidak pernah dipasang |
-| bob hanya `support` (Exercise 5) | bob `support` + `admin` | Tanpa ini **2 test gagal 403** (terbukti) |
-| Contoh output: 15 test | 20 test | Contoh output di tutorial sudah usang; patokannya semua *passed* |
+| # | Tutorial | Branch ini | Alasan |
+|---|---|---|---|
+| 1 | Langkah 9.2 mengganti `before CREATE` menjadi `after READ … changeUrgencyDueToSubject` | **Tetap `before CREATE`** | Versi tutorial mematikan auto-urgency: **3 test gagal** (terbukti) |
+| 2 | `onCustomerRead` ditampilkan dua versi | Satu versi (yang terakhir) | Hindari method ganda |
+| 3 | Query S/4 memilih `address('email')` / `address('email','phoneNumber')` **dan** meng-expand elemen yang sama | Baris select itu dihapus, expand saja | CAP 9 menolak: *Duplicate definition of element "to_EmailAddress"* → value help error & aktivasi incident 500 |
+| 4 | Langkah 10 mengganti header `tests/test.js` (user `incident.support@tester.sap.com`) | Tidak diterapkan | User itu tidak ada di mock user → test 401 |
+| 5 | EDMX diunduh dari api.sap.com | Diambil dari repo SAP `SAP-samples/cloud-cap-samples-java` | Unduhan api.sap.com wajib login; isinya API yang sama |
 
 ## Catatan trainer
 
-- Test ini sekaligus "kunci jawaban" Exercise 3 dan 5: bila Auto-Urgency gagal → cek `srv/services.js`; bila Authorization gagal → cek role bob.
-- Teori Unit 6 memakai **Mocha + Chai**; exercise memakai **Jest** + `expect` dari `cds.test` (gaya Chai). Konsepnya sama, runner-nya berbeda.
-- Assessment Unit 6 no. 4: file yang dipakai `test.js` (di folder `tests`), bukan `test_main.js`.
+- Tutorial versi sekarang **sepenuhnya lokal dengan `cds mock`** — tidak memakai API key sandbox. Soal assessment Unit 6 (API key, `.env`) berasal dari versi lama yang memanggil `sandbox.api.sap.com`.
+- Siapkan file EDMX di share kelas — peserta tanpa akun SAP tidak bisa mengunduhnya.
+- **Penting untuk Exercise 9:** setelah exercise ini, server CAP **gagal start di production** tanpa konfigurasi destination. Perbaikannya ada di branch `ex09-deploy-cloud-foundry`.
