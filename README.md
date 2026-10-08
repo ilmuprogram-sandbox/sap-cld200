@@ -1,68 +1,64 @@
-# Exercise 7 — Add an External Service (Business Partner API)
+# Exercise 8 — Preparing the Production Environment
 
 | | |
 |---|---|
-| Branch | `ex07-external-service` |
-| Sebelumnya | [`ex06-test-cases`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex06-test-cases) |
-| Berikutnya | [`ex08-production-prep`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex08-production-prep) |
-| Unit | 6 · Consuming External Services |
-| Durasi | 20 mnt (Instructor Guide) · **60 mnt** (2 tutorial) |
-| Tutorial SAP | https://developers.sap.com/tutorials/remote-service-extend.html + https://developers.sap.com/tutorials/remote-service-run-dev-test.html |
+| Branch | `ex08-production-prep` |
+| Sebelumnya | [`ex07-external-service`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex07-external-service) |
+| Berikutnya | [`ex09-deploy-cloud-foundry`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex09-deploy-cloud-foundry) |
+| Unit | 7 · Deploying the Application |
+| Durasi | 30 mnt (Instructor Guide) · 20 mnt (tutorial) |
+| Tutorial SAP | https://developers.sap.com/tutorials/prep-for-prod.html |
 
-> ⚠️ Link di PDF exercise SAP (`remote-service-extend-cf.html`) **404**. Pakai link di atas.
-
-Branch ini berisi kondisi proyek **di akhir Exercise 7**.
+Branch ini berisi kondisi proyek **di akhir Exercise 8**.
 
 ## Tujuan
 
-Mengimpor **Business Partner API** SAP S/4HANA Cloud, mengambil daftar customer dari API itu (value help), menyimpan (cache) customer terpilih ke tabel lokal, dan menguji semuanya dengan **mock server lokal** — tanpa sistem S/4 sungguhan.
+Menyiapkan konfigurasi **production**: SQLite in-memory → **SAP HANA Cloud**, mock auth → **XSUAA**, plus konfigurasi **SAP Build Work Zone** (HTML5 repo, destination, inbound navigation).
+Belum ada yang di-deploy — perilaku lokal (`cds watch`) **tidak berubah**.
 
 ## Menjalankan branch ini
 
 ```bash
-git checkout ex07-external-service
+git checkout ex08-production-prep
 npm install
-cds watch --with-mocks          # mock S/4 di proses yang sama
+(cd app/incidents && npm install)
+cds build --production        # checkpoint exercise ini
+cds watch --with-mocks        # lokal tetap sama seperti Exercise 7
 ```
-
-Atau seperti tutorial, dua terminal: `cds mock API_BUSINESS_PARTNER` lalu `cds watch`
-(bila tidak terhubung, hapus `~/.cds-services.json`).
-
-Buka `/launchpage.html` → tile Incident Management → login `alice` → **Create** → value help **Customer**.
 
 ## Perbedaan dari exercise sebelumnya
 
 ```bash
-git diff ex06-test-cases ex07-external-service --stat -- . ':!package-lock.json'
+git diff ex07-external-service ex08-production-prep --stat -- . ':!*package-lock.json'
 ```
 
-| File | Status | Isi |
-|---|---|---|
-| `srv/external/API_BUSINESS_PARTNER.edmx` | baru | Definisi API (OData V2). `cds import` memindahkannya ke sini dari root proyek |
-| `srv/external/API_BUSINESS_PARTNER.cds` | baru | Hasil `cds import … --as cds`, dengan 3 association diubah menjadi **Composition** (`to_BusinessPartnerAddress`, `to_EmailAddress`, `to_PhoneNumber`) |
-| `srv/remote.cds` | baru | `RemoteService` — proyeksi `BusinessPartner`, `BusinessPartnerAddress`, `EmailAddress`, `PhoneNumber` |
-| `srv/external/data/*.csv` | baru | Data mock S/4 (pemisah **titik koma**), ID sama dengan customer lokal |
-| `srv/services.js` | diubah | `init()` jadi `async`; handler baru `on READ Customers` → `onCustomerRead` (delegasi ke S/4) dan `on CREATE/UPDATE Incidents` → `onCustomerCache` (UPSERT ke `Customers`) |
-| `package.json` | diubah | Library `@sap-cloud-sdk/*@3`; `cds.requires.API_BUSINESS_PARTNER` (`kind: odata-v2`) dari `cds import` |
+| File | Status | Isi | Dari |
+|---|---|---|---|
+| `package.json` | diubah | `@cap-js/hana`, `@sap/xssec`; `"[production]": { "db": "hana", "auth": "xsuaa" }`; `"destinations"`, `"html5-repo"`, `"workzone": true` | `cds add hana/xsuaa --for production`, `cds add workzone-standard` |
+| `xs-security.json` | baru | Scope `$XSAPPNAME.support` & `$XSAPPNAME.admin` + role-template `support` & `admin` — diturunkan dari `@requires` Exercise 5 | `cds add xsuaa` |
+| `db/undeploy.json` | baru | Daftar artefak HANA yang boleh dihapus saat redeploy | `cds add hana` |
+| `app/incidents/xs-app.json` | baru | Route `^/?odata/(.*)$` → destination `srv-api` (XSUAA), sisanya → `html5-apps-repo-rt` | `cds add workzone-standard` |
+| `app/incidents/ui5.yaml` | diubah | Custom task `ui5-task-zipper` (archive `incidents`, ikut `xs-app.json`) | `cds add workzone-standard` |
+| `app/incidents/package.json` | diubah | devDependency `ui5-task-zipper`; script `build`, `start` | `cds add workzone-standard` |
+| `app/incidents/webapp/manifest.json` | diubah | `crossNavigation.inbounds.incidents-display` (`incidents`/`display`), `"sap.cloud": { "service": "incidentmanagement.service" }`, **`uri` tanpa `/` di depan** | generator + edit manual |
+| `package-lock.json`, `app/incidents/package-lock.json` | diubah/baru | Sinkron dengan dependensi baru | `npm install` |
 
 ## Checkpoint (sudah diverifikasi)
 
-- Value help Customer: 3 customer dari mock S/4, dengan e-mail dari S/4 (mis. `test@demo.com`).
-- Buat incident untuk customer `1004161` → data customer lokal ter-update dengan e-mail/telepon dari S/4.
-- `npm run test` → 20/20 passed.
+- `cds build --production` → `build completed`.
+- `npm run test` → 20/20 passed (perilaku lokal tidak berubah).
 
-## ⚠️ Penyimpangan dari tutorial
+## ⚠️ Penyimpangan / perbedaan dari tutorial
 
-| # | Tutorial | Branch ini | Alasan |
-|---|---|---|---|
-| 1 | Langkah 9.2 mengganti `before CREATE` menjadi `after READ … changeUrgencyDueToSubject` | **Tetap `before CREATE`** | Versi tutorial mematikan auto-urgency: **3 test gagal** (terbukti) |
-| 2 | `onCustomerRead` ditampilkan dua versi | Satu versi (yang terakhir) | Hindari method ganda |
-| 3 | Query S/4 memilih `address('email')` / `address('email','phoneNumber')` **dan** meng-expand elemen yang sama | Baris select itu dihapus, expand saja | CAP 9 menolak: *Duplicate definition of element "to_EmailAddress"* → value help error & aktivasi incident 500 |
-| 4 | Langkah 10 mengganti header `tests/test.js` (user `incident.support@tester.sap.com`) | Tidak diterapkan | User itu tidak ada di mock user → test 401 |
-| 5 | EDMX diunduh dari api.sap.com | Diambil dari repo SAP `SAP-samples/cloud-cap-samples-java` | Unduhan api.sap.com wajib login; isinya API yang sama |
+| Tutorial | Branch ini | Alasan |
+|---|---|---|
+| Hanya `npm install` di `app/incidents` | Juga **`npm install` di root** | `cds add hana/xsuaa` tidak memperbarui `package-lock.json` → `npm ci` di `mbt build` / `cds up` **gagal** |
+| Destination di `xs-app.json` bernama `incident-management-srv-api` | `srv-api` | Hasil generator CAP 9 — ikuti yang di-generate |
+| File `ui5-deploy.yaml` | Tidak ada; zipper di `ui5.yaml` | Hasil generator versi baru |
 
 ## Catatan trainer
 
-- Tutorial versi sekarang **sepenuhnya lokal dengan `cds mock`** — tidak memakai API key sandbox. Soal assessment Unit 6 (API key, `.env`) berasal dari versi lama yang memanggil `sandbox.api.sap.com`.
-- Siapkan file EDMX di share kelas — peserta tanpa akun SAP tidak bisa mengunduhnya.
-- **Penting untuk Exercise 9:** setelah exercise ini, server CAP **gagal start di production** tanpa konfigurasi destination. Perbaikannya ada di branch `ex09-deploy-cloud-foundry`.
+- Konfigurasi untuk Work Zone (inbound navigation, `sap.cloud.service`) **dibuat di exercise ini**, bukan di Exercise 10. Bila tile tidak muncul di Exercise 10, periksa file-file di atas.
+- Lupa menghapus `/` di depan `uri` → setelah deploy app terbuka tetapi data **kosong / 404**.
+- Di lokal, CAP 9 me-redirect (308) URL OData relatif ke root, jadi preview lokal tetap jalan.
+- Cek konfigurasi efektif: `cds env requires -4 production`.
