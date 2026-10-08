@@ -13,6 +13,7 @@
   "devDependencies": {
     "@cap-js/cds-test": "^1.0.2",
     "@cap-js/sqlite": "^2",
+    "@sap/cds-dk": "^9",
     "jest": "^30.5.2"
   },
   "scripts": {
@@ -47,7 +48,13 @@
       },
       "[production]": {
         "db": "hana",
-        "auth": "xsuaa"
+        "auth": "xsuaa",
+        "API_BUSINESS_PARTNER": {
+          "credentials": {
+            "destination": "API_BUSINESS_PARTNER",
+            "path": "/sap/opu/odata/sap/API_BUSINESS_PARTNER"
+          }
+        }
       },
       "destinations": true,
       "html5-repo": true,
