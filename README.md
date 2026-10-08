@@ -1,56 +1,51 @@
-# Exercise 3 — Add Custom Business Logic
+# Exercise 4 — Add a Local Launch Page
 
 | | |
 |---|---|
-| Branch | `ex03-custom-logic` |
-| Sebelumnya | [`ex02-fiori-elements-ui`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex02-fiori-elements-ui) |
-| Berikutnya | [`ex04-local-launch-page`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex04-local-launch-page) |
+| Branch | `ex04-local-launch-page` |
+| Sebelumnya | [`ex03-custom-logic`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex03-custom-logic) |
+| Berikutnya | [`ex05-authorization`](https://github.com/ilmuprogram-sandbox/sap-cld200/tree/ex05-authorization) |
 | Unit | 4 · Adding Custom Business Logic |
 | Durasi | 10 mnt (Instructor Guide) · 10 mnt (tutorial) |
-| Tutorial SAP | https://developers.sap.com/tutorials/add-custom-logic.html |
+| Tutorial SAP | https://developers.sap.com/tutorials/use-local-launch-page.html |
 
-Branch ini berisi kondisi proyek **di akhir Exercise 3**.
+Branch ini berisi kondisi proyek **di akhir Exercise 4**.
 
 ## Tujuan
 
-Menambahkan event handler untuk `ProcessorService`:
-- **Auto-urgency** — judul yang mengandung kata "urgent" (huruf besar/kecil) otomatis mendapat urgency **High**.
-- **Validasi** — incident yang sudah **Closed** tidak boleh diubah.
+Menambahkan **launch page lokal**: sandbox SAP Fiori launchpad (header shell + tile) untuk menguji app sebelum ada SAP Build Work Zone.
+Ini salinan terbatas — tanpa konfigurasi app lewat UI, tanpa role, tanpa personalisasi.
 
 ## Menjalankan branch ini
 
 ```bash
-git checkout ex03-custom-logic
+git checkout ex04-local-launch-page
 npm install
-npm run watch-incidents
+cds watch
 ```
+
+Buka `http://localhost:4004/launchpage.html#Shell-home`.
 
 ## Perbedaan dari exercise sebelumnya
 
 ```bash
-git diff ex02-fiori-elements-ui ex03-custom-logic
+git diff ex03-custom-logic ex04-local-launch-page
 ```
 
 | File | Status | Isi |
 |---|---|---|
-| `srv/services.js` | baru | Class `ProcessorService extends cds.ApplicationService` dengan `before('CREATE')` → `changeUrgencyDueToSubject` dan `before('UPDATE')` → `onUpdate` (`req.reject` bila status `C`) |
+| `app/launchpage.html` | baru | `sap-ushell-config` dengan satu aplikasi `incidents-app` (`SAPUI5.Component=ns.incidents`, url `./incidents/webapp`), bootstrap `sandbox.js` + `sap-ui-core.js` dari `ui5.sap.com`, tema `sap_horizon` |
 
-Hanya satu file. Nama `services.js` **sama dengan** `services.cds`, sehingga CAP otomatis menjadikannya implementasi service (teori Unit 4, opsi 1).
+File ditaruh langsung di `app/`, **bukan subfolder**.
 
 ## Checkpoint (sudah diverifikasi)
 
-| Uji | Hasil |
-|---|---|
-| Buat incident berjudul "This is URGENT please", urgency **Medium**, lalu simpan | urgency menjadi **H (High)** |
-| Edit incident *Inverter not functional* (status Closed) → simpan | ditolak: *Can't modify a closed incident!* |
-
-## Bug tutorial
-
-Bagian *Understand the custom code* di tutorial menjelaskan handler **after READ** yang mengubah hasil baca.
-Itu **tidak cocok** dengan kode yang ditulis (handler **before CREATE** dan **before UPDATE**). Jelaskan ke peserta sesuai kodenya.
+- `/launchpage.html` → 200, berisi `SAPUI5.Component=ns.incidents`.
+- Di browser: ganti `/ns.incidents/index.html?sap-ui-xx-viewCache=false` pada URL app dengan `/launchpage.html#Shell-home` → muncul tile **Incident-Management**.
 
 ## Catatan trainer
 
-- Kaitkan dengan fase event `before` / `on` / `after`: `before` dipakai untuk enrichment dan validasi.
-- `req.reject` mengirim error ke client. `req.subject` adalah entitas yang sedang diubah.
-- Logika ini nanti diuji otomatis di Exercise 6 (test *Auto-Urgency* dan *Close Incident…*).
+- **Kenapa `launchpage.html`, bukan `index.html`?** Server CAP memakai `app/index.html` (bila ada) untuk **menggantikan** halaman default yang berisi link service. Nama lain menjaga halaman default tetap ada.
+- Dev space BAS harus berstatus **Running** (soal assessment Unit 4 no. 11).
+- App kedua cukup ditambah satu entri di `applications`.
+- Tampilan header-nya mirip SAP Launchpad; versi "asli" dengan site, role, dan group dibuat di Exercise 10 (Work Zone).
